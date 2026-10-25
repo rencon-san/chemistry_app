@@ -132,7 +132,7 @@ def evaluate_jumon_image(img: Image.Image, q_type: str, has_shikou_mark: bool) -
         + np.abs(np.diff(gray.astype(float), axis=1)).mean()
     )
     visual_complexity = (edges * 0.35) + (contrast * 0.04)
-    base_offset = 0 if q_type == "A问题" else (2 if q_type == "B問題" else 3)
+    base_offset = 0 if q_type == "A問題" else (2 if q_type == "B問題" else 3)
     shikou_bonus = 1 if has_shikou_mark else 0
     return int(np.clip(round(visual_complexity + base_offset + shikou_bonus), 1, 10))
 
@@ -148,37 +148,6 @@ def get_stage_info(points: int):
     return "基礎固め", "基礎固め I", "基礎固め II", 10000, 0.0
 
 
-# 💡 苦手分野分析に基づく「あなたのための3問」抽出ロジック
-def get_smart_recommendations(df: pd.DataFrame) -> pd.DataFrame:
-    # 1. 「解けなかった」「一部解けた」が多い章や、ミスが記録されている章を特定
-    weak_rows = df[df["解答状況"].isin(["解けなかった", "一部解けた"]) | (df["つまずきメモ"].str.strip() != "")]
-    weak_chapters = weak_rows["章"].value_counts().index.tolist() if not weak_rows.empty else []
-
-    pool = df[df["解答状況"] != "解けた"]
-    recommended = []
-
-    # 2. 苦手な章にある未完答問題を優先ピックアップ
-    for chap in weak_chapters:
-        chap_items = pool[pool["章"] == chap]
-        for _, row in chap_items.iterrows():
-            if len(recommended) < 3 and row["問題番号"] not in [r["問題番号"] for r in recommended]:
-                recommended.append(row)
-
-    # 3. 3問に満たない場合は、未着手またはB問題・巻末補充などの重要問題から補う
-    if len(recommended) < 3:
-        for _, row in pool.iterrows():
-            if len(recommended) < 3 and row["問題番号"] not in [r["問題番号"] for r in recommended]:
-                recommended.append(row)
-
-    # それでも足りない場合は最初から3問
-    if len(recommended) < 3:
-        for _, row in df.iterrows():
-            if len(recommended) < 3 and row["問題番号"] not in [r["問題番号"] for r in recommended]:
-                recommended.append(row)
-
-    return pd.DataFrame(recommended[:3])
-
-
 def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) -> str:
     size = 360
     cx, cy = size / 2, size / 2
@@ -192,7 +161,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
     }
 
     svg = [f'<svg viewBox="0 0 {size} {size}" width="100%" style="max-width:380px;display:block;margin:0 auto;">']
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="#FFFFFF" stroke="#2C2C2A" stroke-width="1.5"/>')
+    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="#FFFFFF" stroke="#000000" stroke-width="1.5"/>')
 
     for frac in [0.2, 0.4, 0.6, 0.8]:
         svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r * frac:.1f}" fill="none" stroke="#E2E0D8" stroke-width="1"/>')
@@ -229,7 +198,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
         ly = cy + (max_r + 16) * math.sin(mid_rad) + 4
         svg.append(
             f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" '
-            f'font-size="11" font-weight="800" fill="#2C2C2A" font-family="sans-serif">{i + 1}</text>'
+            f'font-size="11" font-weight="800" fill="#000000" font-family="sans-serif">{i + 1}</text>'
         )
 
     target_r = max_r * target_ratio
@@ -237,7 +206,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
         f'<circle cx="{cx}" cy="{cy}" r="{target_r:.1f}" fill="none" '
         f'stroke="#C93B3B" stroke-width="2" stroke-dasharray="5,4"/>'
     )
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="none" stroke="#2C2C2A" stroke-width="1.8"/>')
+    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="none" stroke="#000000" stroke-width="1.8"/>')
     svg.append("</svg>")
     return "".join(svg)
 
@@ -247,9 +216,9 @@ def stars_html(level: int) -> str:
     s = ""
     for i in range(5):
         if i < filled:
-            s += '<span style="color:#52D669; -webkit-text-stroke: 1px #1F5E2B; font-size:16px;">★</span>'
+            s += '<span style="color:#52D669; -webkit-text-stroke: 1px #000000; font-size:16px;">★</span>'
         else:
-            s += '<span style="color:#FFFFFF; -webkit-text-stroke: 1px #2C2C2A; font-size:16px;">★</span>'
+            s += '<span style="color:#FFFFFF; -webkit-text-stroke: 1px #000000; font-size:16px;">★</span>'
     return s
 
 
@@ -262,7 +231,7 @@ st.markdown("""
 <style>
 .stApp {
     background-color: #EEECE2;
-    color: #2C2C2A;
+    color: #000000;
     font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
 }
 .block-container {
@@ -287,13 +256,13 @@ st.markdown("""
     font-size: 26px;
     font-weight: 900;
     letter-spacing: 2px;
-    color: #2C2C2A;
+    color: #000000;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .icon-pill {
-    border: 1.5px solid #2C2C2A;
+    border: 1.5px solid #000000;
     border-radius: 999px;
     padding: 4px 14px;
     background: #F5F4EC;
@@ -304,7 +273,7 @@ st.markdown("""
 .univ-header {
     font-size: 20px;
     font-weight: 800;
-    color: #2C2C2A;
+    color: #000000;
     margin: 6px 0 12px 0;
     display: flex;
     align-items: center;
@@ -322,7 +291,7 @@ st.markdown("""
     font-size: 12px;
     font-weight: 700;
     background: #DFDDD0;
-    color: #7A786E;
+    color: #000000;
     clip-path: polygon(0% 0%, 90% 0%, 100% 50%, 90% 100%, 0% 100%, 10% 50%);
 }
 .stage-step:first-child {
@@ -330,14 +299,14 @@ st.markdown("""
     border-radius: 4px 0 0 4px;
 }
 .stage-step.active {
-    background: #2C2C2A;
+    background: #000000;
     color: #FFFFFF;
 }
 .pill-progress-outer {
     width: 100%;
     height: 30px;
     background: #FFFFFF;
-    border: 1.8px solid #2C2C2A;
+    border: 1.8px solid #000000;
     border-radius: 999px;
     padding: 3px;
     box-sizing: border-box;
@@ -353,8 +322,8 @@ st.markdown("""
     background-color: #F8F7F2;
     background-image: radial-gradient(#D5D2C4 1.2px, transparent 1.2px);
     background-size: 12px 12px;
-    border-top: 1.5px solid #2C2C2A;
-    border-bottom: 1.5px solid #2C2C2A;
+    border-top: 1.5px solid #000000;
+    border-bottom: 1.5px solid #000000;
     padding: 16px 14px;
     margin: 18px 0;
     display: flex;
@@ -372,7 +341,7 @@ st.markdown("""
     width: 145px;
     height: 130px;
     background: #FFFFFF;
-    border: 1.5px solid #2C2C2A;
+    border: 1.5px solid #000000;
     border-radius: 4px;
     box-shadow: 2px 2px 0px rgba(0,0,0,0.12);
     padding: 8px;
@@ -383,19 +352,20 @@ st.markdown("""
     top: -18px;
     left: 4px;
     background: #FFFFFF;
-    border: 1.5px solid #2C2C2A;
+    border: 1.5px solid #000000;
     border-bottom: none;
     border-radius: 4px 4px 0 0;
     padding: 1px 8px;
     font-size: 10px;
     font-weight: 700;
+    color: #000000;
 }
 .date-badge {
     position: absolute;
     right: -18px;
     background: #65A2F8;
-    color: #2C2C2A;
-    border: 1.2px solid #2C2C2A;
+    color: #000000;
+    border: 1.2px solid #000000;
     border-radius: 3px;
     padding: 1px 6px;
     font-size: 10px;
@@ -410,8 +380,8 @@ st.markdown("""
 .q-card {
     flex: 1;
     background: #FFFFFF;
-    border: 1.8px solid #2C2C2A;
-    box-shadow: 3px 4px 0px #2C2C2A;
+    border: 1.8px solid #000000;
+    box-shadow: 3px 4px 0px #000000;
     padding: 10px 8px 12px 8px;
     position: relative;
     min-height: 175px;
@@ -427,7 +397,7 @@ st.markdown("""
     top: -8px;
     right: -6px;
     background: #7CE38B;
-    border: 1.5px solid #2C2C2A;
+    border: 1.5px solid #000000;
     border-radius: 50%;
     width: 38px;
     height: 38px;
@@ -438,10 +408,11 @@ st.markdown("""
     font-size: 11px;
     font-weight: 900;
     line-height: 1.05;
+    color: #000000;
 }
 .solve-pill {
     align-self: flex-end;
-    background: #2C2C2A;
+    background: #000000;
     color: #FFFFFF;
     border-radius: 999px;
     padding: 3px 10px;
@@ -453,33 +424,36 @@ st.markdown("""
     align-items: center;
     justify-content: center;
     background: #F7DF54;
-    border: 1.5px solid #2C2C2A;
+    border: 1.5px solid #000000;
     border-radius: 50%;
     width: 34px;
     height: 34px;
     font-weight: 900;
     font-size: 14px;
     margin-right: 8px;
+    color: #000000;
 }
 .memo-card {
     background: #FFFFFF;
-    border: 1.8px solid #2C2C2A;
-    box-shadow: 3px 4px 0px #2C2C2A;
+    border: 1.8px solid #000000;
+    box-shadow: 3px 4px 0px #000000;
     border-radius: 6px;
     padding: 14px;
     margin-bottom: 14px;
     position: relative;
+    color: #000000;
 }
 .memo-tag-chip {
     display: inline-block;
     background: #F7DF54;
-    border: 1.2px solid #2C2C2A;
+    border: 1.2px solid #000000;
     border-radius: 999px;
     padding: 1px 9px;
     font-size: 11px;
     font-weight: 800;
     margin-right: 5px;
     margin-bottom: 4px;
+    color: #000000;
 }
 .memo-box-trouble {
     background: #FFF5F5;
@@ -500,7 +474,7 @@ st.markdown("""
 div[data-testid="stTabs"] button {
     font-weight: 800 !important;
     font-size: 13px !important;
-    color: #2C2C2A !important;
+    color: #000000 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -524,10 +498,6 @@ total_difficulty = int(df[df["解答状況"] != "未着手"]["レベル"].sum())
 memo_count = int(((df["つまずきメモ"].str.strip() != "") | (df["解法のコツ"].str.strip() != "")).sum())
 
 cat_stage, cur_stage_name, next_stage_name, rem_pt, stage_pct = get_stage_info(total_earned)
-
-# 💡 苦手分析に基づく「あなたのための3問」を取得
-rec_3 = get_smart_recommendations(df)
-rec_3_pts = int(rec_3["満点pt"].sum())
 
 # 上部ブランドバー
 st.markdown("""
@@ -560,7 +530,7 @@ with tab_home:
     st.markdown(step_html, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style="font-size:12px; color:#7A786E; font-weight:700; margin-bottom:2px;">到達ステージ（総合進度 {total_pct:.1f}%）</div>
+    <div style="font-size:12px; color:#000000; font-weight:700; margin-bottom:2px;">到達ステージ（総合進度 {total_pct:.1f}%）</div>
     <div style="display:flex; justify-content:space-between; align-items:baseline;">
         <div style="font-size:30px; font-weight:900; letter-spacing:1px;">{cur_stage_name}</div>
         <div style="font-size:28px; font-weight:900;">{total_earned:,} <span style="font-size:16px;">pt</span></div>
@@ -569,10 +539,9 @@ with tab_home:
         <div class="pill-progress-inner" style="width: {max(6.0, stage_pct):.1f}%;"></div>
     </div>
     <div style="font-size:14px; font-weight:600; line-height:1.8; margin-bottom:14px;">
-        次のステージ {next_stage_name} まで <span class="hl-yellow">あと {rem_pt:,} pt</span><br>
-        今日の「あなた専用・苦手対策の3問」を解くと <span class="hl-yellow">{total_earned + rec_3_pts:,} pt</span>
+        次のステージ {next_stage_name} まで <span class="hl-yellow">あと {rem_pt:,} pt</span>
     </div>
-    <hr style="border:none; border-top:1.5px solid #DCD9CA; margin:16px 0;">
+    <hr style="border:none; border-top:1.5px solid #000000; margin:16px 0;">
     """, unsafe_allow_html=True)
 
     # 🎯 分野ごとの現在地
@@ -589,11 +558,11 @@ with tab_home:
     <div style="font-size:20px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:8px;">
         🎯 分野ごとの現在地
     </div>
-    <div style="display:flex; justify-content:center; gap:24px; font-size:12px; font-weight:700; color:#5A5850; margin-bottom:4px;">
+    <div style="display:flex; justify-content:center; gap:24px; font-size:12px; font-weight:700; color:#000000; margin-bottom:4px;">
         <span><span style="color:#C93B3B; font-weight:900;">- -</span> 今月の目標 (72%)</span>
-        <span><span style="color:#2C2C2A; font-weight:900;">—</span> 合格ライン (100%: 10万pt)</span>
+        <span><span style="color:#000000; font-weight:900;">—</span> 合格ライン (100%: 10万pt)</span>
     </div>
-    <div style="text-align:center; font-size:11px; color:#7A786E; margin-bottom:8px;">
+    <div style="text-align:center; font-size:11px; color:#000000; margin-bottom:8px;">
         番号（1〜17）は『重要問題集』の第1章〜第16章・巻末補充問題に対応しています。
     </div>
     {svg_chart}
@@ -620,14 +589,14 @@ with tab_home:
     st.markdown(f"""
     <div class="dotted-box">
         <div style="flex:1;">
-            <div style="font-size:11px; font-weight:800; color:#5A5850;">総回答 / メモ数</div>
+            <div style="font-size:11px; font-weight:800; color:#000000;">総回答 / メモ数</div>
             <div style="font-size:24px; font-weight:900; margin-bottom:8px;">
                 ✏️ <span class="hl-yellow">{answered_count}</span>
                 <span style="font-size:13px; margin-left:4px;">(📝{memo_count})</span>
             </div>
-            <div style="font-size:11px; font-weight:800; color:#5A5850;">累計日数</div>
+            <div style="font-size:11px; font-weight:800; color:#000000;">累計日数</div>
             <div style="font-size:22px; font-weight:900; margin-bottom:8px;">📅 <span class="hl-yellow">{study_days}</span></div>
-            <div style="font-size:11px; font-weight:800; color:#5A5850;">難易度合計</div>
+            <div style="font-size:11px; font-weight:800; color:#000000;">難易度合計</div>
             <div style="font-size:22px; font-weight:900;">📊 <span class="hl-yellow">{total_difficulty}</span></div>
         </div>
         <div class="stack-wrapper">
@@ -641,53 +610,14 @@ with tab_home:
             <div class="stack-card" style="top:20px; left:0px; background:#FFFFFF;">
                 <div class="stack-tab">見直し</div>
                 <div class="date-badge" style="top:36px;">{recent_date}</div>
-                <div style="margin-top:8px; font-weight:800; color:#2C2C2A;">要復習: {len(review_df)}問</div>
-                <div style="font-size:10px; color:#5A5850; margin-top:4px; line-height:1.35;">
+                <div style="margin-top:8px; font-weight:800; color:#000000;">要復習: {len(review_df)}問</div>
+                <div style="font-size:10px; color:#000000; margin-top:4px; line-height:1.35;">
                     {stack_preview}
                 </div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # 💡 あなたのための3問（苦手対策ピックアップ）
-    st.markdown("""
-    <div style="display:flex; align-items:center; margin-top:10px;">
-        <span class="burst-badge">+3</span>
-        <span style="font-size:17px; font-weight:900;">あなた専用・苦手対策の3問</span>
-    </div>
-    <div style="font-size:12px; color:#5A5850; margin-top:2px; margin-bottom:8px;">
-        ⚠️「解けなかった」「一部解けた」が多い苦手な章から優先的に選出されています。
-    </div>
-    """, unsafe_allow_html=True)
-
-    tilts = ["tilt-left", "tilt-mid", "tilt-right"]
-    cards_html = '<div class="q-cards-row">'
-    for idx, (_, r_row) in enumerate(rec_3.iterrows()):
-        short_chap = r_row["章"].split(" ", 1)[-1][:8]
-        status_badge = f"⚠️{r_row['解答状況']}" if r_row["解答状況"] != "未着手" else "🔥未着手"
-        cards_html += f"""
-        <div class="q-card {tilts[idx]}">
-            <div class="pt-circle">{r_row['満点pt']}<br><span style="font-size:8px;">pt</span></div>
-            <div>
-                <div style="font-size:10px; color:#7A786E; font-weight:700;">{short_chap}</div>
-                <div style="font-size:28px; font-weight:900; line-height:1.1; margin:2px 0;">{int(r_row['問題番号']):02d}</div>
-                <div style="font-size:11px; font-weight:700; margin-bottom:4px;">{r_row['分野']}（{r_row['区分']}）</div>
-                <div>{stars_html(int(r_row['レベル']))}</div>
-                <div style="font-size:10px; font-weight:800; margin-top:3px; color:#C93B3B;">{status_badge}</div>
-            </div>
-            <div class="solve-pill">✏️ No.{int(r_row['問題番号'])}</div>
-        </div>
-        """
-    cards_html += "</div>"
-    st.markdown(cards_html, unsafe_allow_html=True)
-
-    btn_cols = st.columns(3)
-    for idx, (_, r_row) in enumerate(rec_3.iterrows()):
-        q_num = int(r_row["問題番号"])
-        if btn_cols[idx].button(f"✏️ No.{q_num:02d} を記録", key=f"jump_{q_num}", use_container_width=True):
-            st.session_state.selected_q = q_num
-            st.toast(f"No.{q_num} をセットしました！「🏋️ トレーニング」タブで特訓できます。")
 
 # ==========================================
 # タブ2：🏋️ トレーニング
@@ -706,10 +636,10 @@ with tab_train:
     q_row = df[df["問題番号"] == q_number].iloc[0]
 
     st.markdown(f"""
-    <div style="background:#FFFFFF; border:1.8px solid #2C2C2A; box-shadow:3px 4px 0px #2C2C2A; padding:14px; margin-bottom:16px;">
+    <div style="background:#FFFFFF; border:1.8px solid #000000; box-shadow:3px 4px 0px #000000; padding:14px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:12px; font-weight:800; color:#7A786E;">{q_row['分野']} ｜ {q_row['章']}</span>
-            <span style="background:#7CE38B; border:1.5px solid #2C2C2A; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:900;">
+            <span style="font-size:12px; font-weight:800; color:#000000;">{q_row['分野']} ｜ {q_row['章']}</span>
+            <span style="background:#7CE38B; border:1.5px solid #000000; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:900; color:#000000;">
                 満点 {q_row['満点pt']} pt
             </span>
         </div>
@@ -837,14 +767,14 @@ with tab_review:
             st.markdown(f"""
             <div class="memo-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span style="font-size:11px; font-weight:800; color:#7A786E;">{m_row['分野']} ｜ {m_row['章']}</span>
-                    <span style="font-size:11px; font-weight:800; background:#EEECE2; border:1px solid #2C2C2A; padding:1px 8px; border-radius:999px;">
+                    <span style="font-size:11px; font-weight:800; color:#000000;">{m_row['分野']} ｜ {m_row['章']}</span>
+                    <span style="font-size:11px; font-weight:800; background:#EEECE2; border:1px solid #000000; padding:1px 8px; border-radius:999px; color:#000000;">
                         {m_row['解答状況']}（{m_row['周回数']}周）
                     </span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:baseline;">
                     <div style="font-size:22px; font-weight:900;">No.{q_no:02d} <span style="font-size:13px;">（{m_row['区分']} / Lv.{m_row['レベル']}）</span></div>
-                    <div style="font-size:11px; color:#7A786E;">最終学習: {m_row['最終学習日']}</div>
+                    <div style="font-size:11px; color:#000000;">最終学習: {m_row['最終学習日']}</div>
                 </div>
                 <div style="margin-top:4px;">{tags_html}</div>
                 {trouble_html}
