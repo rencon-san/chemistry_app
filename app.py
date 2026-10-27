@@ -6,29 +6,32 @@ import streamlit as st
 from PIL import Image
 
 # ==========================================
-# 1. 『実戦 化学重要問題集』マスター設定 (全275問 / 旧帝大=100,000pt)
+# 1. 『実戦 化学重要問題集 (2026)』マスター設定 (全270問 / 旧帝大=100,000pt)
 # ==========================================
 GOAL_POINTS = 100000
 DATA_FILE = "jumon_progress_data.csv"
 
+# [分野, 章タイトル, 開始番号, 終了番号, A問題数(概算用), 目標pt]
+# ※2026年版の問題番号(全270問)・全18章構成に訂正
 JUMON_CHAPTERS = [
-    ("理論化学", "第1章 物質の構成粒子", 1, 14, 11, 4500),
-    ("理論化学", "第2章 物質量と化学反応式", 15, 26, 9, 4000),
-    ("理論化学", "第3章 化学結合と結晶", 27, 41, 11, 5000),
-    ("理論化学", "第4章 物質の三態・気体の法則", 42, 58, 11, 6500),
-    ("理論化学", "第5章 溶液の性質", 59, 77, 12, 7000),
-    ("理論化学", "第6章 化学反応と熱・光（エンタルピー）", 78, 90, 9, 4500),
-    ("理論化学", "第7章 反応の速さと化学平衡", 91, 108, 11, 7000),
-    ("理論化学", "第8章 酸と塩基の反応・中和滴定", 109, 125, 11, 6000),
-    ("理論化学", "第9章 酸化還元反応・電池・電気分解", 126, 148, 15, 7500),
-    ("無機化学", "第10章 非金属元素", 149, 163, 11, 5500),
-    ("無機化学", "第11章 典型金属元素", 164, 182, 13, 6500),
-    ("無機化学", "第12章 遷移元素・錯イオン・系統分離", 183, 198, 10, 6000),
-    ("有機化学", "第13章 脂肪族化合物・構造決定の基礎", 199, 218, 13, 7500),
-    ("有機化学", "第14章 芳香族化合物・有機化合物の分離", 219, 237, 12, 7500),
-    ("有機化学", "第15章 天然有機化合物（糖・アミノ酸・核酸）", 238, 253, 10, 6000),
-    ("有機化学", "第16章 合成高分子化合物（繊維・樹脂・ゴム）", 254, 266, 8, 5000),
-    ("有機化学", "巻末補充問題 旧帝大・難関大総合演習", 267, 275, 0, 4000),
+    ("理論化学", "第1章 物質の構成粒子", 1, 14, 11, 4000),
+    ("理論化学", "第2章 物質量と化学反応式", 15, 31, 13, 5000),
+    ("理論化学", "第3章 化学結合と結晶", 32, 46, 11, 4500),
+    ("理論化学", "第4章 物質の三態・気体の法則", 47, 63, 12, 5000),
+    ("理論化学", "第5章 溶液", 64, 79, 12, 5500),
+    ("理論化学", "第6章 化学反応とエネルギー", 80, 91, 9, 4500),
+    ("理論化学", "第7章 反応の速さと化学平衡", 92, 107, 11, 5500),
+    ("理論化学", "第8章 酸と塩基の反応", 108, 126, 14, 6000),
+    ("理論化学", "第9章 酸化・還元と電池・電気分解", 127, 144, 13, 6000),
+    ("無機化学", "第10章 非金属元素", 145, 161, 12, 5500),
+    ("無機化学", "第11章 金属元素", 162, 174, 9, 5000),
+    ("無機化学", "第12章 無機物質の性質・反応", 175, 186, 8, 4500),
+    ("有機化学", "第13章 脂肪族化合物", 187, 200, 10, 5000),
+    ("有機化学", "第14章 芳香族化合物", 201, 211, 8, 4500),
+    ("有機化学", "第15章 有機化合物の構造と性質・反応", 212, 232, 15, 7500),
+    ("有機化学", "第16章 天然高分子化合物", 233, 244, 8, 4500),
+    ("有機化学", "第17章 合成高分子化合物", 245, 256, 8, 4500),
+    ("有機化学", "第18章 巻末補充問題", 257, 270, 0, 8000), # 全てB問題/発展扱い
 ]
 
 STATUS_MULTIPLIER = {
@@ -69,7 +72,7 @@ def build_master_dataframe() -> pd.DataFrame:
 
         allocated = 0
         for idx, q_no in enumerate(range(start_no, end_no + 1)):
-            if chapter.startswith("巻末補充"):
+            if chapter.startswith("第18章"):
                 q_type = "巻末補充"
                 default_lvl = 9 if idx < 5 else 10
                 weight = 1.45
@@ -109,12 +112,29 @@ def build_master_dataframe() -> pd.DataFrame:
 def load_data() -> pd.DataFrame:
     if os.path.exists(DATA_FILE):
         df_loaded = pd.read_csv(DATA_FILE)
+        
+        # 既存データが17章(275問)等の古いフォーマットの場合、新フォーマット(270問/18章)で再構築する
+        if len(df_loaded) != 270:
+             df_init = build_master_dataframe()
+             # 旧データから解答状況やメモを可能か限り引き継ぐ処理(同じ問題番号をマッピング)
+             for _, row in df_loaded.iterrows():
+                  q_no = row["問題番号"]
+                  if q_no <= 270:
+                       idx = df_init.index[df_init["問題番号"] == q_no]
+                       if not idx.empty:
+                           for col in ["レベル", "解答状況", "獲得pt", "周回数", "最終学習日", "原因タグ", "つまずきメモ", "解法のコツ"]:
+                               if col in row:
+                                   df_init.loc[idx, col] = row[col]
+             df_init.to_csv(DATA_FILE, index=False)
+             return df_init
+
         for col in ["原因タグ", "つまずきメモ", "解法のコツ"]:
             if col not in df_loaded.columns:
                 df_loaded[col] = ""
             else:
                 df_loaded[col] = df_loaded[col].fillna("").astype(str)
         return df_loaded
+        
     df_init = build_master_dataframe()
     df_init.to_csv(DATA_FILE, index=False)
     return df_init
@@ -152,7 +172,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
     size = 360
     cx, cy = size / 2, size / 2
     max_r = 132
-    n = len(chap_df)
+    n = len(chap_df) # 今回は18章
 
     color_map = {
         "理論化学": ["#39D353", "#7CE38B", "#4AC26B", "#82E596", "#2DA44E", "#6BD983", "#56D364", "#8CE99A", "#3FB950"],
@@ -164,7 +184,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
     svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="#FFFFFF" stroke="#000000" stroke-width="1.5"/>')
 
     for frac in [0.2, 0.4, 0.6, 0.8]:
-        svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r * frac:.1f}" fill="none" stroke="#E2E0D8" stroke-width="1"/>')
+        svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r * frac:.1f}" fill="none" stroke="#000000" stroke-width="1"/>')
 
     field_counters = {"理論化学": 0, "無機化学": 0, "有機化学": 0}
     for i, row in chap_df.iterrows():
@@ -175,15 +195,15 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
 
         gx = cx + max_r * math.cos(a1)
         gy = cy + max_r * math.sin(a1)
-        svg.append(f'<line x1="{cx}" y1="{cy}" x2="{gx:.1f}" y2="{gy:.1f}" stroke="#E2E0D8" stroke-width="1"/>')
+        svg.append(f'<line x1="{cx}" y1="{cy}" x2="{gx:.1f}" y2="{gy:.1f}" stroke="#000000" stroke-width="1"/>')
 
         pct = min(100.0, max(0.0, float(row["進捗率(%)"])))
         r_val = max_r * (max(pct, 4.0) / 100.0) if pct > 0 else 0
 
         field = row["分野"]
         c_list = color_map.get(field, ["#549EF7"])
-        fill_color = c_list[field_counters[field] % len(c_list)]
-        field_counters[field] += 1
+        fill_color = c_list[field_counters.get(field, 0) % len(c_list)]
+        field_counters[field] = field_counters.get(field, 0) + 1
 
         if r_val > 0:
             x1 = cx + r_val * math.cos(a1)
@@ -191,7 +211,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
             x2 = cx + r_val * math.cos(a2)
             y2 = cy + r_val * math.sin(a2)
             path_d = f"M {cx},{cy} L {x1:.1f},{y1:.1f} A {r_val:.1f},{r_val:.1f} 0 0,1 {x2:.1f},{y2:.1f} Z"
-            svg.append(f'<path d="{path_d}" fill="{fill_color}" fill-opacity="0.88" stroke="#FFFFFF" stroke-width="0.6"/>')
+            svg.append(f'<path d="{path_d}" fill="{fill_color}" fill-opacity="0.88" stroke="#000000" stroke-width="0.6"/>')
 
         mid_rad = math.radians((start_deg + end_deg) / 2)
         lx = cx + (max_r + 16) * math.cos(mid_rad)
@@ -204,7 +224,7 @@ def render_polar_chart_svg(chap_df: pd.DataFrame, target_ratio: float = 0.72) ->
     target_r = max_r * target_ratio
     svg.append(
         f'<circle cx="{cx}" cy="{cy}" r="{target_r:.1f}" fill="none" '
-        f'stroke="#C93B3B" stroke-width="2" stroke-dasharray="5,4"/>'
+        f'stroke="#000000" stroke-width="2" stroke-dasharray="5,4"/>'
     )
     svg.append(f'<circle cx="{cx}" cy="{cy}" r="{max_r}" fill="none" stroke="#000000" stroke-width="1.8"/>')
     svg.append("</svg>")
@@ -216,7 +236,7 @@ def stars_html(level: int) -> str:
     s = ""
     for i in range(5):
         if i < filled:
-            s += '<span style="color:#52D669; -webkit-text-stroke: 1px #000000; font-size:16px;">★</span>'
+            s += '<span style="color:#000000; font-size:16px;">★</span>'
         else:
             s += '<span style="color:#FFFFFF; -webkit-text-stroke: 1px #000000; font-size:16px;">★</span>'
     return s
@@ -230,7 +250,7 @@ st.set_page_config(page_title="SIRUS - 化学重要問題集", page_icon="🏛�
 st.markdown("""
 <style>
 .stApp {
-    background-color: #EEECE2;
+    background-color: #FFFFFF;
     color: #000000;
     font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
 }
@@ -240,16 +260,17 @@ st.markdown("""
     max-width: 560px !important;
 }
 .hl-yellow {
-    background: linear-gradient(transparent 55%, #F7DF54 55%);
+    background: transparent;
     font-weight: 800;
     padding: 0 3px;
+    text-decoration: underline;
 }
 .brand-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding-bottom: 10px;
-    border-bottom: 1px solid #DCD9CA;
+    border-bottom: 1px solid #000000;
     margin-bottom: 12px;
 }
 .brand-logo {
@@ -265,7 +286,7 @@ st.markdown("""
     border: 1.5px solid #000000;
     border-radius: 999px;
     padding: 4px 14px;
-    background: #F5F4EC;
+    background: #FFFFFF;
     font-size: 16px;
     display: flex;
     gap: 12px;
@@ -290,7 +311,8 @@ st.markdown("""
     padding: 7px 4px;
     font-size: 12px;
     font-weight: 700;
-    background: #DFDDD0;
+    background: #FFFFFF;
+    border: 1px solid #000000;
     color: #000000;
     clip-path: polygon(0% 0%, 90% 0%, 100% 50%, 90% 100%, 0% 100%, 10% 50%);
 }
@@ -315,15 +337,12 @@ st.markdown("""
 .pill-progress-inner {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #E8F54A 0%, #38C958 100%);
+    background: #000000;
     transition: width 0.4s ease;
 }
 .dotted-box {
-    background-color: #F8F7F2;
-    background-image: radial-gradient(#D5D2C4 1.2px, transparent 1.2px);
-    background-size: 12px 12px;
-    border-top: 1.5px solid #000000;
-    border-bottom: 1.5px solid #000000;
+    background-color: #FFFFFF;
+    border: 1.5px solid #000000;
     padding: 16px 14px;
     margin: 18px 0;
     display: flex;
@@ -343,7 +362,7 @@ st.markdown("""
     background: #FFFFFF;
     border: 1.5px solid #000000;
     border-radius: 4px;
-    box-shadow: 2px 2px 0px rgba(0,0,0,0.12);
+    box-shadow: 2px 2px 0px rgba(0,0,0,1);
     padding: 8px;
     font-size: 11px;
 }
@@ -363,75 +382,13 @@ st.markdown("""
 .date-badge {
     position: absolute;
     right: -18px;
-    background: #65A2F8;
+    background: #FFFFFF;
     color: #000000;
     border: 1.2px solid #000000;
     border-radius: 3px;
     padding: 1px 6px;
     font-size: 10px;
     font-weight: 800;
-}
-.q-cards-row {
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-    margin: 14px 0 18px 0;
-}
-.q-card {
-    flex: 1;
-    background: #FFFFFF;
-    border: 1.8px solid #000000;
-    box-shadow: 3px 4px 0px #000000;
-    padding: 10px 8px 12px 8px;
-    position: relative;
-    min-height: 175px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-.q-card.tilt-left { transform: rotate(-2.5deg); }
-.q-card.tilt-mid { transform: rotate(0.8deg); margin-top: 8px; }
-.q-card.tilt-right { transform: rotate(2.5deg); }
-.pt-circle {
-    position: absolute;
-    top: -8px;
-    right: -6px;
-    background: #7CE38B;
-    border: 1.5px solid #000000;
-    border-radius: 50%;
-    width: 38px;
-    height: 38px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 900;
-    line-height: 1.05;
-    color: #000000;
-}
-.solve-pill {
-    align-self: flex-end;
-    background: #000000;
-    color: #FFFFFF;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 700;
-}
-.burst-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #F7DF54;
-    border: 1.5px solid #000000;
-    border-radius: 50%;
-    width: 34px;
-    height: 34px;
-    font-weight: 900;
-    font-size: 14px;
-    margin-right: 8px;
-    color: #000000;
 }
 .memo-card {
     background: #FFFFFF;
@@ -445,7 +402,7 @@ st.markdown("""
 }
 .memo-tag-chip {
     display: inline-block;
-    background: #F7DF54;
+    background: #FFFFFF;
     border: 1.2px solid #000000;
     border-radius: 999px;
     padding: 1px 9px;
@@ -456,16 +413,18 @@ st.markdown("""
     color: #000000;
 }
 .memo-box-trouble {
-    background: #FFF5F5;
-    border-left: 4px solid #E05252;
+    background: #FFFFFF;
+    border: 1px solid #000000;
+    border-left: 4px solid #000000;
     padding: 8px 10px;
     margin-top: 8px;
     font-size: 13px;
     border-radius: 0 4px 4px 0;
 }
 .memo-box-tip {
-    background: #F2FBF4;
-    border-left: 4px solid #38C958;
+    background: #FFFFFF;
+    border: 1px solid #000000;
+    border-left: 4px solid #000000;
     padding: 8px 10px;
     margin-top: 6px;
     font-size: 13px;
@@ -559,18 +518,18 @@ with tab_home:
         🎯 分野ごとの現在地
     </div>
     <div style="display:flex; justify-content:center; gap:24px; font-size:12px; font-weight:700; color:#000000; margin-bottom:4px;">
-        <span><span style="color:#C93B3B; font-weight:900;">- -</span> 今月の目標 (72%)</span>
+        <span><span style="color:#000000; font-weight:900;">- -</span> 今月の目標 (72%)</span>
         <span><span style="color:#000000; font-weight:900;">—</span> 合格ライン (100%: 10万pt)</span>
     </div>
     <div style="text-align:center; font-size:11px; color:#000000; margin-bottom:8px;">
-        番号（1〜17）は『重要問題集』の第1章〜第16章・巻末補充問題に対応しています。
+        番号（1〜18）は『重要問題集』の第1章〜第18章に対応しています。
     </div>
     {svg_chart}
     """, unsafe_allow_html=True)
 
     selected_chap_idx = st.selectbox(
-        "📌 扇形の番号（1〜17）から章の詳細を確認",
-        options=list(range(1, 18)),
+        "📌 扇形の番号（1〜18）から章の詳細を確認",
+        options=list(range(1, 19)),
         format_func=lambda x: f"{x}. {chap_summary.iloc[x-1]['章']} （進捗: {chap_summary.iloc[x-1]['進捗率(%)']}%｜{chap_summary.iloc[x-1]['獲得pt']}/{chap_summary.iloc[x-1]['目標pt']}pt）"
     )
 
@@ -600,11 +559,11 @@ with tab_home:
             <div style="font-size:22px; font-weight:900;">📊 <span class="hl-yellow">{total_difficulty}</span></div>
         </div>
         <div class="stack-wrapper">
-            <div class="stack-card" style="top:0px; left:24px; background:#F2F0E8;">
+            <div class="stack-card" style="top:0px; left:24px; background:#FFFFFF;">
                 <div class="stack-tab">見直し</div>
                 <div class="date-badge" style="top:14px;">10/1</div>
             </div>
-            <div class="stack-card" style="top:10px; left:12px; background:#F8F7F2;">
+            <div class="stack-card" style="top:10px; left:12px; background:#FFFFFF;">
                 <div class="stack-tab">見直し</div>
             </div>
             <div class="stack-card" style="top:20px; left:0px; background:#FFFFFF;">
@@ -626,20 +585,20 @@ with tab_train:
     st.subheader("🏋️ 『重要問題集』問題記録 ＆ 苦手克服メモ")
 
     q_number = st.number_input(
-        "問題番号を選択 (No.1 〜 No.275)",
+        "問題番号を選択 (No.1 〜 No.270)",
         min_value=1,
-        max_value=275,
+        max_value=270,
         value=int(st.session_state.selected_q),
         step=1
     )
-    st.session_state.selected_q = q_number
+     st.session_state.selected_q = q_number
     q_row = df[df["問題番号"] == q_number].iloc[0]
 
     st.markdown(f"""
     <div style="background:#FFFFFF; border:1.8px solid #000000; box-shadow:3px 4px 0px #000000; padding:14px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; font-weight:800; color:#000000;">{q_row['分野']} ｜ {q_row['章']}</span>
-            <span style="background:#7CE38B; border:1.5px solid #000000; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:900; color:#000000;">
+            <span style="background:#FFFFFF; border:1.5px solid #000000; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:900; color:#000000;">
                 満点 {q_row['満点pt']} pt
             </span>
         </div>
@@ -768,7 +727,7 @@ with tab_review:
             <div class="memo-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <span style="font-size:11px; font-weight:800; color:#000000;">{m_row['分野']} ｜ {m_row['章']}</span>
-                    <span style="font-size:11px; font-weight:800; background:#EEECE2; border:1px solid #000000; padding:1px 8px; border-radius:999px; color:#000000;">
+                    <span style="font-size:11px; font-weight:800; background:#FFFFFF; border:1px solid #000000; padding:1px 8px; border-radius:999px; color:#000000;">
                         {m_row['解答状況']}（{m_row['周回数']}周）
                     </span>
                 </div>
